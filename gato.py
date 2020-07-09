@@ -1,6 +1,7 @@
 import requests
 import tweepy
 import shutil
+import os
 
 twitterTokens = {
                 'consumerKey':'',
@@ -11,7 +12,7 @@ twitterTokens = {
 
 theCatApiToken = ''
 
-searchKeywords = ['gato','gata','gatos','gatas']
+searchKeywords = ['']
 
 def getImgUrl(APIKey):
     r = requests.get('https://api.thecatapi.com/v1/images/search?limit=1',headers={'x-api-key':APIKey})
@@ -48,7 +49,7 @@ def getTweets(api,keywords,since):
     for keyword in keywords[1:]:
         query = query+' OR '+keyword
 
-    tweets = api.search(query,since_id=since,count=100)
+    tweets = api.search(query,since_id=since)
 
     for tweet in tweets:
         if any([keyword in tweet.text for keyword in keywords]):
@@ -59,7 +60,12 @@ def getTweets(api,keywords,since):
 
 api = startTwitterApi(twitterTokens['consumerKey'],twitterTokens['consumerSecret'],twitterTokens['accessToken'],twitterTokens['accessTokenSecret'])
 
-tweets = getTweets(api,keywords,1280971097400315906)
+sinceFile = open('since.txt','r+')
+sinceId = sinceFile.read()
+if sinceId[-1] == '\n':
+    sinceId = sinceId[0:(len(sinceId)-1)]
+
+tweets = getTweets(api,searchKeywords,sinceId)
 
 for tweet in tweets:
     imgUrl = getImgUrl(theCatApiToken)
@@ -67,3 +73,10 @@ for tweet in tweets:
 
     status = "@"+tweet['username']+' Olá! Aqui está uma imagem de um gato para vc'
     api.update_with_media('tmp/'+tweet['tweetId']+'.'+imgUrl.split('.')[-1],status,in_reply_to_status_id=tweet['tweetId'])
+
+    os.remove('tmp/'+tweet['tweetId']+'.'+imgUrl.split('.')[-1])
+
+sinceFile.seek(0)
+sinceFile.truncate()
+sinceFile.write(tweets[0]['tweetId'])
+sinceFile.close()
